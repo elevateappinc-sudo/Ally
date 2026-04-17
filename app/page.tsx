@@ -9,6 +9,6 @@ export default async function RootPage() {
   const { data: member } = await supabase
     .from('organization_members').select('org_id').eq('user_id', user.id).limit(1).single()
 
-  if (!member) redirect('/onboarding')
+  if (!member) redirect('/signup')
   redirect('/dashboard')
 }

@@ -27,8 +27,8 @@ export async function middleware(request: NextRequest) {
   const publicPaths = ['/login', '/signup', '/auth/callback', '/suspended']
   const isPublic = publicPaths.some(p => pathname.startsWith(p))
 
-  // Redirect authenticated users away from auth pages
-  if (isPublic && user && !pathname.startsWith('/suspended')) {
+  // Redirect authenticated users away from login (but NOT signup — OAuth users need it to create an org)
+  if (pathname === '/login' && user) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
