@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
 import { cookies } from 'next/headers'
+import { createClient } from '@/lib/supabase/server'
 import { OnboardingClient } from './OnboardingClient'
 
 export default async function OnboardingPage({
@@ -13,8 +13,23 @@ export default async function OnboardingPage({
   if (!user) redirect('/login')
 
   const cookieStore = await cookies()
-  const orgId = cookieStore.get('active_org_id')?.value
-  if (!orgId) redirect('/signup')
+  let orgId = cookieStore.get('active_org_id')?.value
+
+  // If cookie is missing, look up the org from DB (handles cases where
+  // the cookie wasn't forwarded properly through the OAuth redirect chain)
+  if (!orgId) {
+    const { data: member } = await supabase
+      .from('organization_members').select('org_id').eq('user_id', user.id).limit(1).single()
+    if (!member) redirect('/signup')
+    orgId = member.org_id!
+    // Repair the cookie for downstream pages
+    cookieStore.set('active_org_id', orgId!, {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 30,
+      sameSite: 'lax',
+      httpOnly: false,
+    })
+  }
 
   // Check if already onboarded
   const { data: existing } = await supabase
@@ -24,5 +39,5 @@ export default async function OnboardingPage({
   const params = await searchParams
   const needsSetup = params.setup === '1'
 
-  return <OnboardingClient orgId={orgId} needsSetup={needsSetup} />
+  return <OnboardingClient orgId={orgId!} needsSetup={needsSetup} />
 }
