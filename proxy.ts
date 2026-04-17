@@ -24,7 +24,7 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const { pathname } = request.nextUrl
 
-  const publicPaths = ['/login', '/signup', '/auth/callback', '/suspended']
+  const publicPaths = ['/login', '/signup', '/auth/callback', '/auth/done', '/suspended']
   const isPublic = publicPaths.some(p => pathname.startsWith(p))
 
   // Redirect authenticated users away from login (but NOT signup — OAuth users need it to create an org)
