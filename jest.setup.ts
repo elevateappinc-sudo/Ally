@@ -24,9 +24,24 @@ beforeEach(() => {
   mockRecognitionInstance.onerror = null
 })
 
+// Browser-only mocks — skip in node test environment
+if (typeof window !== 'undefined') {
+
+// Mock SpeechSynthesisUtterance
+;(global as any).SpeechSynthesisUtterance = class {
+  text: string
+  voice: any = null
+  lang: string = 'es-ES'
+  onend: (() => void) | null = null
+  onerror: (() => void) | null = null
+  constructor(text: string) { this.text = text }
+}
+
 Object.defineProperty(window, 'speechSynthesis', {
+  configurable: true,
+  writable: true,
   value: {
-    speak: jest.fn(),
+    speak: jest.fn((utterance: any) => { setTimeout(() => utterance?.onend?.(), 0) }),
     cancel: jest.fn(),
     pause: jest.fn(),
     resume: jest.fn(),
@@ -35,5 +50,6 @@ Object.defineProperty(window, 'speechSynthesis', {
     paused: false,
     pending: false,
   },
-  writable: true,
 })
+
+} // end browser-only mocks
