@@ -22,13 +22,14 @@ export default async function OnboardingPage({
       .from('organization_members').select('org_id').eq('user_id', user.id).limit(1).single()
     if (!member) redirect('/signup')
     orgId = member.org_id!
-    // Repair the cookie for downstream pages
-    cookieStore.set('active_org_id', orgId!, {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 30,
-      sameSite: 'lax',
-      httpOnly: false,
-    })
+    try {
+      cookieStore.set('active_org_id', orgId!, {
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30,
+        sameSite: 'lax',
+        httpOnly: false,
+      })
+    } catch {}
   }
 
   // Check if already onboarded

@@ -16,12 +16,14 @@ export default async function RootPage() {
   const cookieStore = await cookies()
   const current = cookieStore.get('active_org_id')?.value
   if (current !== member.org_id) {
-    cookieStore.set('active_org_id', member.org_id, {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 30,
-      sameSite: 'lax',
-      httpOnly: false,
-    })
+    try {
+      cookieStore.set('active_org_id', member.org_id, {
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30,
+        sameSite: 'lax',
+        httpOnly: false,
+      })
+    } catch {}
   }
 
   redirect('/dashboard')
