@@ -17,27 +17,31 @@ export default function SignupPage() {
     setLoading(true)
     setError('')
 
-    // 1. Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({ email, password })
-    if (authError || !authData.user) {
-      setError(authError?.message || 'Error al registrar')
-      setLoading(false)
-      return
-    }
-
-    // 2. Create org via server API (uses admin client, bypasses RLS)
-    const res = await fetch('/api/create-org', {
+    const res = await fetch('/api/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: businessName }),
+      body: JSON.stringify({ email, password, businessName }),
     })
+
+    const data = await res.json()
+
     if (!res.ok) {
-      setError('Error al crear el negocio')
+      setError(data.error || 'Error al registrar')
       setLoading(false)
       return
     }
 
-    // 3. Go to onboarding — no ?setup=1 so business name won't be asked again
+    if (data.needsLogin) {
+      // Account created but auto-login failed — sign in manually
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+      if (signInError) {
+        setError('Cuenta creada. Por favor iniciá sesión.')
+        setLoading(false)
+        return
+      }
+    }
+
+    document.cookie = `active_org_id=${data.orgId}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`
     router.push('/onboarding')
   }
 

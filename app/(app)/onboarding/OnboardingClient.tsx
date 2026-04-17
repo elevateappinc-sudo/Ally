@@ -20,53 +20,68 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
   const [textInput, setTextInput] = useState('')
   const [setupDone, setSetupDone] = useState(!needsSetup)
   const [setupInput, setSetupInput] = useState('')
-  const { speak, stop: stopSpeech } = useSpeechSynthesis()
+  const { speak } = useSpeechSynthesis()
   const { step, currentStep, answer, finish, saving, done, totalSteps } = useOnboarding(orgId)
-  const hasSpokenRef = useRef(false)
-  // Use ref to avoid stale closure in onSilence callback
+
+  const hasGreetedRef = useRef(false)
+  const stepSpokenRef = useRef(-1)
   const voiceRef = useRef<ReturnType<typeof useVoiceRecognition> | null>(null)
-  const stepRef = useRef(step)
-  useEffect(() => { stepRef.current = step }, [step])
+  const modeRef = useRef(mode)
+  useEffect(() => { modeRef.current = mode }, [mode])
+
+  // After Sofia speaks a question, resume mic if in voice mode
+  const resumeAfterSpeak = useCallback(() => {
+    if (modeRef.current === 'voice' && voiceRef.current) {
+      voiceRef.current.resume()
+      setOrbState('listening')
+    } else {
+      setOrbState('idle')
+    }
+  }, [])
 
   const handleAnswer = useCallback(async (value: string) => {
+    if (!value.trim()) return
     setTranscript('')
     voiceRef.current?.pause()
+    setOrbState('thinking')
 
     if (step === totalSteps - 1) {
-      setOrbState('thinking')
-      if (step === 2) {
-        await speak('Analizando tu perfil...')
-        await new Promise(r => setTimeout(r, 2500))
-      }
       await finish(value)
     } else {
       answer(value)
+      // speaking next question handled by step useEffect
     }
-  }, [step, totalSteps, answer, finish, speak])
+  }, [step, totalSteps, answer, finish])
 
   const voiceRecognition = useVoiceRecognition({
     onTranscript: (text) => { setTranscript(text); setOrbState('listening') },
     onSilence: async (text) => {
-      if (mode !== 'voice') return
+      if (modeRef.current !== 'voice') return
       await handleAnswer(text)
-      if (stepRef.current < totalSteps - 1) {
-        setOrbState('speaking')
-        voiceRef.current?.pause()
-        // Next step question is now current after answer() updated state
-      }
     },
   })
-  // Assign to ref so handleAnswer can access without stale closure
   useEffect(() => { voiceRef.current = voiceRecognition })
 
-  // Speak greeting on mount
+  // Speak greeting once setup is done (step 0)
   useEffect(() => {
-    if (hasSpokenRef.current) return
-    hasSpokenRef.current = true
+    if (!setupDone) return
+    if (hasGreetedRef.current) return
+    hasGreetedRef.current = true
+    stepSpokenRef.current = 0
     setOrbState('speaking')
-    speak('Hola, soy Sofía, tu consultora de marketing personal. Voy a hacerte unas preguntas rápidas para crear tu estrategia personalizada. ¿Qué vendes?')
-      .then(() => setOrbState('idle'))
-  }, [])
+    speak(`Hola, soy Sofía, tu consultora de marketing personal. Voy a hacerte unas preguntas rápidas para crear tu estrategia personalizada. ${currentStep.question}`)
+      .then(resumeAfterSpeak)
+  }, [setupDone])
+
+  // Speak next question when step advances (step 1+)
+  useEffect(() => {
+    if (!setupDone) return
+    if (step === 0) return
+    if (stepSpokenRef.current === step) return
+    stepSpokenRef.current = step
+    setOrbState('speaking')
+    speak(currentStep.question).then(resumeAfterSpeak)
+  }, [step, setupDone])
 
   // Redirect when done
   useEffect(() => {
@@ -74,7 +89,6 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
     setOrbState('thinking')
     speak('Perfecto, ya tengo todo lo que necesito. Estoy armando tu estrategia personalizada, dame un momento...')
       .then(async () => {
-        // Trigger strategy generation
         const res = await fetch('/api/generate-strategy', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -82,7 +96,7 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
         })
         if (res.ok) router.push('/dashboard')
       })
-  }, [done, orgId, router, speak])
+  }, [done])
 
   const handleActivateMic = async () => {
     await voiceRecognition.requestPermission()
@@ -105,7 +119,6 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
     setOrbState('idle')
   }
 
-  // Setup screen — ask for business name (OAuth draft orgs only)
   if (!setupDone) {
     return (
       <div style={{
@@ -138,10 +151,9 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
       minHeight: '100vh', display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center', padding: 32, gap: 40,
     }}>
-      {/* Mode toggle */}
       <div style={{ position: 'fixed', top: 24, right: 24, display: 'flex', gap: 4 }}>
         {(['voice', 'text'] as const).map(m => (
-          <button key={m} onClick={() => setMode(m)} className={`btn btn-glass`}
+          <button key={m} onClick={() => setMode(m)} className="btn btn-glass"
             style={{ padding: '8px 16px', fontSize: 13,
               borderColor: mode === m ? 'var(--siri-cyan)' : 'var(--border)' }}>
             {m === 'voice' ? 'Voz' : 'Texto'}
@@ -150,7 +162,6 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
       </div>
 
       <ProgressIndicator current={step} total={totalSteps} />
-
       <VoiceOrb state={orbState} />
 
       <div style={{ textAlign: 'center', maxWidth: 500 }}>
@@ -184,9 +195,7 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
         </form>
       )}
 
-      {saving && (
-        <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>Guardando...</p>
-      )}
+      {saving && <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>Guardando...</p>}
     </div>
   )
 }
