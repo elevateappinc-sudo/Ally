@@ -9,13 +9,17 @@ import { ProgressIndicator } from '@/components/onboarding/ProgressIndicator'
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition'
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis'
 import { useOnboarding } from '@/hooks/useOnboarding'
+import { createClient } from '@/lib/supabase/client'
 
-export function OnboardingClient({ orgId }: { orgId: string }) {
+export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string; needsSetup?: boolean }) {
   const router = useRouter()
+  const supabase = createClient()
   const [orbState, setOrbState] = useState<OrbState>('idle')
   const [transcript, setTranscript] = useState('')
   const [mode, setMode] = useState<'voice' | 'text'>('voice')
   const [textInput, setTextInput] = useState('')
+  const [setupDone, setSetupDone] = useState(!needsSetup)
+  const [setupInput, setSetupInput] = useState('')
   const { speak, stop: stopSpeech } = useSpeechSynthesis()
   const { step, currentStep, answer, finish, saving, done, totalSteps } = useOnboarding(orgId)
   const hasSpokenRef = useRef(false)
@@ -90,6 +94,43 @@ export function OnboardingClient({ orgId }: { orgId: string }) {
     if (!textInput.trim()) return
     await handleAnswer(textInput.trim())
     setTextInput('')
+  }
+
+  const handleSetupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!setupInput.trim()) return
+    setOrbState('thinking')
+    await supabase.from('organizations').update({ name: setupInput.trim() }).eq('id', orgId)
+    setSetupDone(true)
+    setOrbState('idle')
+  }
+
+  // Setup screen — ask for business name (OAuth draft orgs only)
+  if (!setupDone) {
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', padding: 32, gap: 40,
+      }}>
+        <VoiceOrb state={orbState} />
+        <div style={{ textAlign: 'center', maxWidth: 500 }}>
+          <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>¿Cómo se llama tu negocio?</h2>
+          <p style={{ fontSize: 17, color: 'var(--text-dim)' }}>Podés cambiarlo después en Configuración</p>
+        </div>
+        <form onSubmit={handleSetupSubmit} style={{ display: 'flex', gap: 8, width: '100%', maxWidth: 500 }}>
+          <input
+            value={setupInput} onChange={e => setSetupInput(e.target.value)}
+            placeholder="Ej: Ropa de mujer Laura, Pastelería Don José..."
+            autoFocus
+            style={{ flex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: 10, padding: '14px 16px', color: 'white', fontSize: 15, outline: 'none' }}
+          />
+          <button type="submit" className="btn btn-primary" disabled={orbState === 'thinking'}>
+            Continuar
+          </button>
+        </form>
+      </div>
+    )
   }
 
   return (
