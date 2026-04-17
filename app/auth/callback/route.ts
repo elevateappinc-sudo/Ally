@@ -1,6 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
 import { createClient as createAdminClient } from '@supabase/supabase-js'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 function slugify(str: string) {
@@ -13,17 +12,19 @@ export async function GET(request: Request) {
   const code = searchParams.get('code')
   if (!code) return NextResponse.redirect(`${origin}/login`)
 
-  const cookieStore = await cookies()
+  // Collect cookies set by Supabase so we can apply them to the redirect response
+  const cookiesToForward: Array<{ name: string; value: string; options: any }> = []
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() { return cookieStore.getAll() },
+        getAll() {
+          return request.cookies.getAll()
+        },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
-          )
+          cookiesToForward.push(...cookiesToSet)
         },
       },
     }
@@ -42,6 +43,7 @@ export async function GET(request: Request) {
   if (member) {
     // Returning user — go straight to dashboard
     const res = NextResponse.redirect(`${origin}/dashboard`)
+    cookiesToForward.forEach(({ name, value, options }) => res.cookies.set(name, value, options))
     res.cookies.set('active_org_id', member.org_id, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' })
     return res
   }
@@ -60,9 +62,13 @@ export async function GET(request: Request) {
   if (org) {
     await admin.from('organization_members').insert({ org_id: org.id, user_id: user.id, role: 'owner' })
     const res = NextResponse.redirect(`${origin}/onboarding?setup=1`)
+    cookiesToForward.forEach(({ name, value, options }) => res.cookies.set(name, value, options))
     res.cookies.set('active_org_id', org.id, { path: '/', maxAge: 60 * 60 * 24 * 30, sameSite: 'lax' })
     return res
   }
 
-  return NextResponse.redirect(`${origin}/onboarding?setup=1`)
+  // Fallback: org creation failed, still forward session cookies
+  const res = NextResponse.redirect(`${origin}/onboarding?setup=1`)
+  cookiesToForward.forEach(({ name, value, options }) => res.cookies.set(name, value, options))
+  return res
 }
