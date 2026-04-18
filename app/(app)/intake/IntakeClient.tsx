@@ -103,31 +103,24 @@ export function IntakeClient({ orgId }: Props) {
       { role: 'assistant', content: response },
     ]
     setHistory(newHistory)
-    return newHistory
 
-    // Estimate block progress from conversation length
+    // Update block progress
     const turns = newHistory.filter(t => t.role === 'user').length
     setBlockIndex(Math.min(BLOCKS.length, Math.floor(turns / 3)))
 
-    if (isComplete) {
-      setStatus('speaking')
-      await speak(response)
-      setStatus('complete')
-      return
-    }
-
+    // Speak Sofia's response
     setStatus('speaking')
     await speak(response)
 
-    if (statusRef.current !== 'complete') {
-      if (inputMode === 'voice') {
-        isPausedRef.current = false
-        setStatus('listening')
-      } else {
-        setStatus('listening')
-      }
+    if (isComplete) {
+      setStatus('complete')
+      return newHistory
     }
-  }, [speak, inputMode])
+
+    setStatus('listening')
+    isPausedRef.current = false
+    return newHistory
+  }, [speak])
 
   // Voice recognition setup
   const startVoiceRecognition = useCallback((sid: string, initialHistory: Turn[]) => {
@@ -189,7 +182,13 @@ export function IntakeClient({ orgId }: Props) {
       setMicError(null)
     } catch (err: any) {
       console.error('[startVoice] mic error:', err)
-      setMicError('Necesitamos acceso al micrófono para continuar. Hacé click en "Permitir" cuando el navegador lo solicite.')
+      if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+        setMicError('No se encontró un micrófono en este dispositivo. Conectá uno o usá el modo texto.')
+      } else if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+        setMicError('El acceso al micrófono fue denegado. Habilitalo en la configuración del navegador e intentá de nuevo.')
+      } else {
+        setMicError('No se pudo acceder al micrófono. Verificá que esté conectado y que el navegador tenga permiso.')
+      }
       return
     }
 
