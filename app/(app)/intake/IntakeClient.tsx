@@ -19,6 +19,7 @@ export function IntakeClient({ orgId }: Props) {
 
   const [status, setStatus] = useState<Status>('mode-select')
   const [inputMode, setInputMode] = useState<InputMode>('voice')
+  const [micError, setMicError] = useState<string | null>(null)
   const [history, setHistory] = useState<Turn[]>([])
   const [liveTranscript, setLiveTranscript] = useState('')
   const [textInput, setTextInput] = useState('')
@@ -187,10 +188,15 @@ export function IntakeClient({ orgId }: Props) {
     try {
       micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
       setStream(micStream)
+      setMicError(null)
       console.log('[startVoice] step 2: mic ok')
-    } catch (err) {
+    } catch (err: any) {
       console.error('[startVoice] mic error:', err)
-      setStatus('error')
+      const isPermission = err?.name === 'NotAllowedError' || err?.name === 'NotFoundError' || err?.name === 'SecurityError'
+      setMicError(isPermission
+        ? 'No pudimos acceder al micrófono. Verificá que el browser tenga permiso en Configuración del sistema → Privacidad → Micrófono.'
+        : 'No encontramos un micrófono. Verificá que esté conectado e intentá de nuevo.'
+      )
       return
     }
 
@@ -283,6 +289,19 @@ export function IntakeClient({ orgId }: Props) {
             Sofía te va a hacer unas preguntas para entender tu negocio y crear tu estrategia
           </p>
         </div>
+
+        {micError && (
+          <div style={{
+            width: '100%', maxWidth: 640, background: 'rgba(239,68,68,0.1)',
+            border: '1px solid rgba(239,68,68,0.3)', borderRadius: 12, padding: '14px 18px',
+            display: 'flex', flexDirection: 'column', gap: 10,
+          }}>
+            <p style={{ color: '#f87171', fontSize: 14 }}>⚠️ {micError}</p>
+            <button onClick={startVoice} className="btn btn-primary" style={{ alignSelf: 'flex-start', fontSize: 13 }}>
+              🎤 Permitir micrófono e intentar de nuevo
+            </button>
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', justifyContent: 'center', width: '100%', maxWidth: 640 }}>
           <button onClick={startVoice} style={{
