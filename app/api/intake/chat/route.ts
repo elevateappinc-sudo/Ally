@@ -82,12 +82,18 @@ export async function POST(request: Request) {
     { role: 'user' as const, content: message },
   ]
 
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 500,
-    system: SYSTEM_PROMPT,
-    messages,
-  })
+  let response
+  try {
+    response = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 500,
+      system: SYSTEM_PROMPT,
+      messages,
+    })
+  } catch (err: any) {
+    console.error('[intake/chat] Anthropic error:', err?.message, JSON.stringify(messages))
+    return NextResponse.json({ error: 'Anthropic error', detail: err?.message }, { status: 500 })
+  }
 
   const rawText = response.content[0].type === 'text' ? response.content[0].text : ''
 

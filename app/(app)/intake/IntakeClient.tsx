@@ -67,13 +67,22 @@ export function IntakeClient({ orgId }: Props) {
 
     const apiHistory = currentHistory.map(t => ({ role: t.role, content: t.content }))
 
-    const res = await fetch('/api/intake/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId: sid, message, conversationHistory: apiHistory }),
-    })
+    let res
+    try {
+      res = await fetch('/api/intake/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: sid, message, conversationHistory: apiHistory }),
+      })
+    } catch {
+      setStatus('error'); return
+    }
 
-    if (!res.ok) { setStatus('error'); return }
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}))
+      console.error('[sendMessage] API error:', res.status, errData)
+      setStatus('error'); return
+    }
     const { response, isComplete } = await res.json()
 
     const newHistory: Turn[] = [
@@ -82,6 +91,7 @@ export function IntakeClient({ orgId }: Props) {
       { role: 'assistant', content: response },
     ]
     setHistory(newHistory)
+    return newHistory
 
     // Estimate block progress from conversation length
     const turns = newHistory.filter(t => t.role === 'user').length
@@ -136,9 +146,8 @@ export function IntakeClient({ orgId }: Props) {
           isPausedRef.current = true
           currentTextRef.current = ''
           setLiveTranscript('')
-          await sendMessage(t, latestHistoryRef.current, sid)
-          // Update latest history ref after send
-          setHistory(h => { latestHistoryRef.current = h; return h })
+          const updated = await sendMessage(t, latestHistoryRef.current, sid)
+          if (updated) latestHistoryRef.current = updated
           isPausedRef.current = false
         }, 1800)
       }
