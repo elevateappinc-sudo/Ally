@@ -178,28 +178,41 @@ export function IntakeClient({ orgId }: Props) {
   // Start voice mode
   const startVoice = useCallback(async () => {
     setInputMode('voice')
+    console.log('[startVoice] step 1: initSession')
     const data = await initSession()
-    if (!data) return
+    if (!data) { console.log('[startVoice] initSession returned null'); return }
 
+    console.log('[startVoice] step 2: getUserMedia')
     let micStream: MediaStream
     try {
       micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
       setStream(micStream)
-    } catch {
+      console.log('[startVoice] step 2: mic ok')
+    } catch (err) {
+      console.error('[startVoice] mic error:', err)
       setStatus('error')
       return
     }
 
+    console.log('[startVoice] step 3: speak opening')
     setStatus('speaking')
-    const openingLine = data.resumed && data.conversationHistory?.length > 0
+    const hasHistory = data.resumed && Array.isArray(data.conversationHistory) && data.conversationHistory.length > 0
+    const openingLine = hasHistory
       ? 'Bienvenida de nuevo. ¿Continuamos donde quedamos?'
       : 'Hola, soy Sofía. Cuéntame: ¿qué hacés y qué necesitás de mí?'
 
     const opening: Turn = { role: 'assistant', content: openingLine }
-    const initHistory = data.resumed ? data.conversationHistory : [opening]
-    if (!data.resumed) setHistory([opening])
+    const initHistory = hasHistory ? data.conversationHistory : [opening]
+    if (!hasHistory) setHistory([opening])
 
-    await speak(openingLine)
+    try {
+      await speak(openingLine)
+      console.log('[startVoice] step 3: speak done')
+    } catch (err) {
+      console.error('[startVoice] speak error:', err)
+    }
+
+    console.log('[startVoice] step 4: startVoiceRecognition')
     setStatus('listening')
     startVoiceRecognition(data.sid, initHistory)
   }, [initSession, speak, startVoiceRecognition])
@@ -207,15 +220,18 @@ export function IntakeClient({ orgId }: Props) {
   // Start text mode
   const startText = useCallback(async () => {
     setInputMode('text')
+    console.log('[startText] step 1: initSession')
     const data = await initSession()
-    if (!data) return
+    if (!data) { console.log('[startText] initSession returned null'); return }
 
-    const openingLine = data.resumed && data.conversationHistory?.length > 0
+    const hasHistory = data.resumed && Array.isArray(data.conversationHistory) && data.conversationHistory.length > 0
+    const openingLine = hasHistory
       ? 'Bienvenida de nuevo. ¿Continuamos donde quedamos?'
       : 'Hola, soy Sofía. Cuéntame: ¿qué hacés y qué necesitás de mí?'
 
     const opening: Turn = { role: 'assistant', content: openingLine }
-    if (!data.resumed) setHistory([opening])
+    if (!hasHistory) setHistory([opening])
+    console.log('[startText] ready, history:', hasHistory)
     setStatus('listening')
   }, [initSession])
 
