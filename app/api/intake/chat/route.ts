@@ -68,31 +68,50 @@ export async function POST(request: Request) {
 
   const anthropic = getAnthropicClient()
 
-  // Anthropic requires messages to start with 'user' — strip any leading assistant turns
-  const filtered = conversationHistory.filter(
-    (turn: { role: string; content: string }, i: number) =>
-      !(i === 0 && turn.role === 'assistant')
-  )
+  // Build messages: strip leading assistant turns, ensure strict user/assistant alternation
+  const raw: { role: string; content: string }[] = Array.isArray(conversationHistory)
+    ? conversationHistory.filter(t => t && t.role && t.content?.trim())
+    : []
+
+  // Drop leading assistant turns
+  while (raw.length > 0 && raw[0].role === 'assistant') raw.shift()
+
+  // Deduplicate consecutive same-role turns (keep last)
+  const deduplicated: { role: string; content: string }[] = []
+  for (const turn of raw) {
+    if (deduplicated.length > 0 && deduplicated[deduplicated.length - 1].role === turn.role) {
+      deduplicated[deduplicated.length - 1] = turn
+    } else {
+      deduplicated.push(turn)
+    }
+  }
 
   const messages = [
-    ...filtered.map((turn: { role: string; content: string }) => ({
-      role: turn.role as 'user' | 'assistant',
-      content: turn.content,
+    ...deduplicated.map(t => ({
+      role: t.role as 'user' | 'assistant',
+      content: t.content,
     })),
     { role: 'user' as const, content: message },
   ]
 
+  console.log('[intake/chat] sending', messages.length, 'messages, roles:', messages.map(m => m.role).join(','))
+
   let response
   try {
     response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-3-5-sonnet-20241022',
       max_tokens: 500,
       system: SYSTEM_PROMPT,
       messages,
     })
   } catch (err: any) {
-    console.error('[intake/chat] Anthropic error:', err?.message, JSON.stringify(messages))
-    return NextResponse.json({ error: 'Anthropic error', detail: err?.message }, { status: 500 })
+    console.error('[intake/chat] Anthropic error:', err?.status, err?.message, JSON.stringify(messages))
+    return NextResponse.json({
+      error: 'Anthropic error',
+      detail: err?.message,
+      status: err?.status,
+      messages_sent: messages,
+    }, { status: 500 })
   }
 
   const rawText = response.content[0].type === 'text' ? response.content[0].text : ''
