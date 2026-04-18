@@ -127,8 +127,8 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
   }, [done])
 
   const handleActivateMic = async () => {
-    await voiceRecognition.requestPermission()
-    setOrbState('listening')
+    const granted = await voiceRecognition.requestPermission()
+    setOrbState(granted ? 'listening' : 'idle')
   }
 
   const handleTextSubmit = async (e: React.FormEvent) => {

@@ -46,17 +46,17 @@ export function useVoiceRecognition({
   const pause = useCallback(() => { isPausedRef.current = true; clearTimer() }, [clearTimer])
   const resume = useCallback(() => { isPausedRef.current = false }, [])
 
-  const requestPermission = useCallback(async () => {
+  const requestPermission = useCallback(async (): Promise<boolean> => {
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true })
       setHasPermission(true)
     } catch {
-      setState('stopped'); return
+      setState('stopped'); return false
     }
 
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SpeechRecognition) { setState('stopped'); return }
+    if (!SpeechRecognition) { setState('stopped'); return false }
 
     const recognition = new SpeechRecognition()
     recognition.continuous = true
@@ -89,6 +89,7 @@ export function useVoiceRecognition({
     isListeningRef.current = true
     recognition.start()
     setState('listening')
+    return true
   }, [lang, clearTimer])
 
   const stop = useCallback(() => {
