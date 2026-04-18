@@ -64,8 +64,14 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
 
   const handleServiceConfirm = useCallback(() => {
     if (!selectedService) return
+    if (selectedService === 'agency') {
+      // Agency users go to the full intake interview
+      answer(selectedService)
+      router.push('/intake')
+      return
+    }
     handleAnswer(selectedService)
-  }, [selectedService, handleAnswer])
+  }, [selectedService, handleAnswer, answer, router])
 
   const [debugLog, setDebugLog] = useState<string[]>([])
   const addLog = useCallback((msg: string) => {

@@ -47,8 +47,8 @@ export async function proxy(request: NextRequest) {
     return supabaseResponse
   }
 
-  // Org active guard (skip for /onboarding and /settings)
-  if (!pathname.startsWith('/onboarding') && !pathname.startsWith('/settings')) {
+  // Org active guard (skip for /onboarding, /intake, and /settings)
+  if (!pathname.startsWith('/onboarding') && !pathname.startsWith('/intake') && !pathname.startsWith('/settings')) {
     const activeOrgId = request.cookies.get('active_org_id')?.value
     if (activeOrgId) {
       const { data: org } = await supabase
