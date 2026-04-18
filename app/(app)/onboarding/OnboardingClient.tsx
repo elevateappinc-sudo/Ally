@@ -6,6 +6,7 @@ import { StatusPill } from '@/components/onboarding/StatusPill'
 import { TranscriptCard } from '@/components/onboarding/TranscriptCard'
 import { QuickOptions } from '@/components/onboarding/QuickOptions'
 import { ProgressIndicator } from '@/components/onboarding/ProgressIndicator'
+import { ServiceSelector } from '@/components/onboarding/ServiceSelector'
 import { useVoiceRecognition } from '@/hooks/useVoiceRecognition'
 import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis'
 import { useOnboarding } from '@/hooks/useOnboarding'
@@ -20,6 +21,7 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
   const [textInput, setTextInput] = useState('')
   const [setupDone, setSetupDone] = useState(!needsSetup)
   const [setupInput, setSetupInput] = useState('')
+  const [selectedService, setSelectedService] = useState<'agency' | 'tools' | null>(null)
   const { speak } = useSpeechSynthesis()
   const { step, currentStep, answer, finish, saving, done, totalSteps } = useOnboarding(orgId)
 
@@ -36,7 +38,7 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
         voiceRef.current.resume()
         setOrbState('listening')
       } else {
-        setOrbState('idle') // shows "Activar micrófono" button
+        setOrbState('idle')
       }
     } else {
       setOrbState('idle')
@@ -53,9 +55,17 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
       await finish(value)
     } else {
       answer(value)
-      // speaking next question handled by step useEffect
     }
   }, [step, totalSteps, answer, finish])
+
+  const handleServiceSelect = useCallback((service: 'agency' | 'tools') => {
+    setSelectedService(service)
+  }, [])
+
+  const handleServiceConfirm = useCallback(() => {
+    if (!selectedService) return
+    handleAnswer(selectedService)
+  }, [selectedService, handleAnswer])
 
   const [debugLog, setDebugLog] = useState<string[]>([])
   const addLog = useCallback((msg: string) => {
@@ -83,7 +93,7 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
     hasGreetedRef.current = true
     stepSpokenRef.current = 0
     setOrbState('speaking')
-    speak(`Hola, soy Sofía, tu consultora de marketing personal. Voy a hacerte unas preguntas rápidas para crear tu estrategia personalizada. ${currentStep.question}`)
+    speak('Hola, soy Sofía, tu consultora de marketing personal. Tenemos dos formas de ayudarte a crecer. ¿Con cuál te identificás más: que nosotros gestionemos tu marketing como agencia, o preferís tener herramientas poderosas para manejarlo vos mismo?')
       .then(resumeAfterSpeak)
   }, [setupDone])
 
@@ -160,10 +170,13 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
     )
   }
 
+  const isServiceStep = currentStep.isServiceSelect
+
   return (
     <div style={{
       minHeight: '100vh', display: 'flex', flexDirection: 'column',
-      alignItems: 'center', justifyContent: 'center', padding: 32, gap: 40,
+      alignItems: 'center', justifyContent: 'center', padding: '32px 20px',
+      gap: isServiceStep ? 32 : 40,
     }}>
       <div style={{ position: 'fixed', top: 24, right: 24, display: 'flex', gap: 4 }}>
         {(['voice', 'text'] as const).map(m => (
@@ -178,8 +191,10 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
       <ProgressIndicator current={step} total={totalSteps} />
       <VoiceOrb state={orbState} />
 
-      <div style={{ textAlign: 'center', maxWidth: 500 }}>
-        <h2 style={{ fontSize: 28, fontWeight: 700, marginBottom: 8 }}>{currentStep.question}</h2>
+      <div style={{ textAlign: 'center', maxWidth: 600 }}>
+        <h2 style={{ fontSize: isServiceStep ? 24 : 28, fontWeight: 700, marginBottom: 8 }}>
+          {currentStep.question}
+        </h2>
         <p style={{ fontSize: 17, color: 'var(--text-dim)' }}>{currentStep.sub}</p>
       </div>
 
@@ -187,26 +202,43 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
 
       {transcript && <TranscriptCard text={transcript} />}
 
-      {orbState === 'idle' && mode === 'voice' && (
-        <button onClick={handleActivateMic} className="btn btn-primary">
-          Activar micrófono
-        </button>
+      {/* Service selection step — visual cards */}
+      {isServiceStep && (
+        <>
+          <ServiceSelector selected={selectedService} onSelect={handleServiceSelect} />
+          {selectedService && (
+            <button onClick={handleServiceConfirm} className="btn btn-primary" style={{ padding: '14px 40px', fontSize: 16 }}>
+              Continuar con {selectedService === 'agency' ? 'Agencia de Marketing' : 'Herramientas de Marketing'}
+            </button>
+          )}
+        </>
       )}
 
-      {currentStep.options.length > 0 && (
-        <QuickOptions options={currentStep.options} onSelect={handleAnswer} />
-      )}
+      {/* Regular steps */}
+      {!isServiceStep && (
+        <>
+          {orbState === 'idle' && mode === 'voice' && (
+            <button onClick={handleActivateMic} className="btn btn-primary">
+              Activar micrófono
+            </button>
+          )}
 
-      {mode === 'text' && (
-        <form onSubmit={handleTextSubmit} style={{ display: 'flex', gap: 8, width: '100%', maxWidth: 500 }}>
-          <input
-            value={textInput} onChange={e => setTextInput(e.target.value)}
-            placeholder="Escribí tu respuesta..."
-            style={{ flex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)',
-              borderRadius: 10, padding: '14px 16px', color: 'white', fontSize: 15, outline: 'none' }}
-          />
-          <button type="submit" className="btn btn-primary">Enviar</button>
-        </form>
+          {currentStep.options.length > 0 && (
+            <QuickOptions options={currentStep.options} onSelect={handleAnswer} />
+          )}
+
+          {mode === 'text' && (
+            <form onSubmit={handleTextSubmit} style={{ display: 'flex', gap: 8, width: '100%', maxWidth: 500 }}>
+              <input
+                value={textInput} onChange={e => setTextInput(e.target.value)}
+                placeholder="Escribí tu respuesta..."
+                style={{ flex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)',
+                  borderRadius: 10, padding: '14px 16px', color: 'white', fontSize: 15, outline: 'none' }}
+              />
+              <button type="submit" className="btn btn-primary">Enviar</button>
+            </form>
+          )}
+        </>
       )}
 
       {saving && <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>Guardando...</p>}
