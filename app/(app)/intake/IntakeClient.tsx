@@ -49,9 +49,20 @@ export function IntakeClient({ orgId }: Props) {
   // Initialize session
   const initSession = useCallback(async () => {
     setStatus('initializing')
-    const res = await fetch('/api/intake/session', { method: 'POST' })
-    if (!res.ok) { setStatus('error'); return }
+    let res
+    try {
+      res = await fetch('/api/intake/session', { method: 'POST' })
+    } catch (err) {
+      console.error('[initSession] fetch failed:', err)
+      setStatus('error'); return
+    }
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      console.error('[initSession] session error:', res.status, body)
+      setStatus('error'); return
+    }
     const { sessionId: sid, resumed: r, conversationHistory } = await res.json()
+    console.log('[initSession] ok — sid:', sid, 'resumed:', r)
     setSessionId(sid)
     if (r && conversationHistory?.length > 0) {
       setHistory(conversationHistory)
