@@ -74,8 +74,13 @@ export function IntakeClient({ orgId }: Props) {
     return { sid, resumed: r, conversationHistory }
   }, [])
 
-  // Send message to Claude
-  const sendMessage = useCallback(async (message: string, currentHistory: Turn[], sid: string) => {
+  // Send message to Claude — mode passed explicitly to avoid ref timing issues
+  const sendMessage = useCallback(async (
+    message: string,
+    currentHistory: Turn[],
+    sid: string,
+    mode: InputMode,
+  ) => {
     setStatus('thinking')
     setLiveTranscript('')
 
@@ -106,12 +111,10 @@ export function IntakeClient({ orgId }: Props) {
     ]
     setHistory(newHistory)
 
-    // Update block progress
     const turns = newHistory.filter(t => t.role === 'user').length
     setBlockIndex(Math.min(BLOCKS.length, Math.floor(turns / 3)))
 
-    // Speak Sofia's response (voice mode only — text mode skips TTS to avoid hanging)
-    if (inputModeRef.current === 'voice') {
+    if (mode === 'voice') {
       setStatus('speaking')
       await speak(response)
     }
@@ -155,7 +158,7 @@ export function IntakeClient({ orgId }: Props) {
           isPausedRef.current = true
           currentTextRef.current = ''
           setLiveTranscript('')
-          const updated = await sendMessage(t, latestHistoryRef.current, sid)
+          const updated = await sendMessage(t, latestHistoryRef.current, sid, 'voice')
           if (updated) latestHistoryRef.current = updated
           isPausedRef.current = false
         }, 1800)
@@ -243,10 +246,10 @@ export function IntakeClient({ orgId }: Props) {
 
   const handleTextSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!textInput.trim() || !sessionId || status !== 'listening') return
+    if (!textInput.trim() || !sessionId || status === 'thinking') return
     const msg = textInput.trim()
     setTextInput('')
-    await sendMessage(msg, history, sessionId)
+    await sendMessage(msg, history, sessionId, 'text')
   }, [textInput, sessionId, status, history, sendMessage])
 
   const handleStop = useCallback(() => {
@@ -353,15 +356,7 @@ export function IntakeClient({ orgId }: Props) {
   }
 
   const waveMode = status === 'speaking' ? 'sofia' : status === 'listening' ? 'user' : 'idle'
-  const statusLabel = {
-    listening: '🎤 Escuchando...',
-    thinking: '💭 Pensando...',
-    speaking: '🔊 Sofía hablando...',
-    complete: '✅ Completado',
-    initializing: 'Iniciando...',
-    'mode-select': '',
-    error: '',
-  }[status]
+  const isThinking = status === 'thinking'
 
   return (
     <div style={{
@@ -376,15 +371,19 @@ export function IntakeClient({ orgId }: Props) {
         <p style={{ fontSize: 13, color: 'var(--text-dim)' }}>{formatTime(elapsedSeconds)}</p>
       </div>
 
-      {/* Waveform */}
-      <div style={{
-        background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)',
-        borderRadius: 20, padding: '20px 28px', display: 'flex', flexDirection: 'column',
-        alignItems: 'center', gap: 12,
-      }}>
-        <WaveformVisualizer mode={waveMode} stream={stream} />
-        <p style={{ fontSize: 13, color: 'var(--text-dim)', fontWeight: 500 }}>{statusLabel}</p>
-      </div>
+      {/* Voice mode: waveform + status label */}
+      {inputMode === 'voice' && (
+        <div style={{
+          background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)',
+          borderRadius: 20, padding: '20px 28px', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', gap: 12,
+        }}>
+          <WaveformVisualizer mode={waveMode} stream={stream} />
+          <p style={{ fontSize: 13, color: 'var(--text-dim)', fontWeight: 500 }}>
+            {status === 'listening' ? '🎤 Escuchando...' : status === 'thinking' ? '💭 Pensando...' : status === 'speaking' ? '🔊 Sofía hablando...' : ''}
+          </p>
+        </div>
+      )}
 
       {/* Progress */}
       <div style={{ width: '100%', maxWidth: 560 }}>
@@ -404,21 +403,28 @@ export function IntakeClient({ orgId }: Props) {
       {/* Transcript */}
       <ConversationTranscript history={history} liveTranscript={liveTranscript} />
 
-      {/* Text input */}
-      {inputMode === 'text' && status === 'listening' && (
-        <form onSubmit={handleTextSubmit} style={{ display: 'flex', gap: 8, width: '100%', maxWidth: 560 }}>
-          <input
-            value={textInput}
-            onChange={e => setTextInput(e.target.value)}
-            placeholder="Escribí tu respuesta..."
-            autoFocus
-            style={{
-              flex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)',
-              borderRadius: 10, padding: '14px 16px', color: 'white', fontSize: 15, outline: 'none',
-            }}
-          />
-          <button type="submit" className="btn btn-primary">Enviar</button>
-        </form>
+      {/* Text mode: always-visible input, disabled while thinking */}
+      {inputMode === 'text' && (
+        <>
+          {isThinking && (
+            <p style={{ fontSize: 14, color: 'var(--text-dim)', fontStyle: 'italic' }}>💭 Sofía está pensando...</p>
+          )}
+          <form onSubmit={handleTextSubmit} style={{ display: 'flex', gap: 8, width: '100%', maxWidth: 560 }}>
+            <input
+              value={textInput}
+              onChange={e => setTextInput(e.target.value)}
+              placeholder={isThinking ? 'Esperando respuesta...' : 'Escribí tu respuesta...'}
+              disabled={isThinking}
+              autoFocus
+              style={{
+                flex: 1, background: 'var(--bg-card)', border: '1px solid var(--border)',
+                borderRadius: 10, padding: '14px 16px', color: 'white', fontSize: 15, outline: 'none',
+                opacity: isThinking ? 0.5 : 1,
+              }}
+            />
+            <button type="submit" className="btn btn-primary" disabled={isThinking}>Enviar</button>
+          </form>
+        </>
       )}
 
       {/* Controls */}
