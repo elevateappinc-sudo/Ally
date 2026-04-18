@@ -17,19 +17,12 @@ export async function POST() {
     orgId = member.org_id
   }
 
-  // Check for existing active session
-  const { data: existing } = await supabase
+  // Mark any previous active sessions as abandoned
+  await supabase
     .from('intake_sessions')
-    .select('id, conversation_history, status')
+    .update({ status: 'abandoned' })
     .eq('org_id', orgId)
     .eq('status', 'active')
-    .order('started_at', { ascending: false })
-    .limit(1)
-    .single()
-
-  if (existing) {
-    return NextResponse.json({ sessionId: existing.id, resumed: true, conversationHistory: existing.conversation_history })
-  }
 
   const { data: session, error } = await supabase
     .from('intake_sessions')
@@ -39,5 +32,5 @@ export async function POST() {
 
   if (error || !session) return NextResponse.json({ error: 'Failed to create session' }, { status: 500 })
 
-  return NextResponse.json({ sessionId: session.id, resumed: false, conversationHistory: [] })
+  return NextResponse.json({ sessionId: session.id, conversationHistory: [] })
 }
