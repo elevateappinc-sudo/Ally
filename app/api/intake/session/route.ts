@@ -8,8 +8,14 @@ export async function POST() {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const cookieStore = await cookies()
-  const orgId = cookieStore.get('active_org_id')?.value
-  if (!orgId) return NextResponse.json({ error: 'No org' }, { status: 400 })
+  let orgId = cookieStore.get('active_org_id')?.value
+
+  if (!orgId) {
+    const { data: member } = await supabase
+      .from('organization_members').select('org_id').eq('user_id', user.id).single()
+    if (!member) return NextResponse.json({ error: 'No org' }, { status: 400 })
+    orgId = member.org_id
+  }
 
   // Check for existing active session
   const { data: existing } = await supabase
