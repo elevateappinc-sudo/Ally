@@ -20,18 +20,28 @@ export function useVoiceRecognition({
   const silenceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const currentText = useRef('')
 
+  // Always-fresh refs — updated every render so event handlers never go stale
+  const onSilenceRef = useRef(onSilence)
+  onSilenceRef.current = onSilence
+  const onTranscriptRef = useRef(onTranscript)
+  onTranscriptRef.current = onTranscript
+  const silenceTimeoutRef = useRef(silenceTimeout)
+  silenceTimeoutRef.current = silenceTimeout
+
   const clearTimer = useCallback(() => {
     if (silenceTimer.current) clearTimeout(silenceTimer.current)
   }, [])
 
-  const startTimer = useCallback(() => {
+  // Ref-based startTimer so recognition.onresult always calls the latest version
+  const startTimerRef = useRef(() => {})
+  startTimerRef.current = () => {
     clearTimer()
     if (!currentText.current.trim()) return
     silenceTimer.current = setTimeout(() => {
       const t = currentText.current.trim()
-      if (t) { onSilence(t); currentText.current = '' }
-    }, silenceTimeout)
-  }, [clearTimer, onSilence, silenceTimeout])
+      if (t) { onSilenceRef.current(t); currentText.current = '' }
+    }, silenceTimeoutRef.current)
+  }
 
   const pause = useCallback(() => { isPausedRef.current = true; clearTimer() }, [clearTimer])
   const resume = useCallback(() => { isPausedRef.current = false }, [])
@@ -61,8 +71,8 @@ export function useVoiceRecognition({
       }
       const isFinal = event.results[event.results.length - 1]?.isFinal ?? false
       currentText.current = text
-      onTranscript(text, isFinal)
-      if (text) startTimer()
+      onTranscriptRef.current(text, isFinal)
+      if (text) startTimerRef.current()
     }
 
     recognition.onend = () => {
@@ -79,7 +89,7 @@ export function useVoiceRecognition({
     isListeningRef.current = true
     recognition.start()
     setState('listening')
-  }, [lang, onTranscript, startTimer])
+  }, [lang, clearTimer])
 
   const stop = useCallback(() => {
     isListeningRef.current = false
