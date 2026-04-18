@@ -28,7 +28,9 @@ export function WaveformVisualizer({ mode, stream }: Props) {
     }
     return () => {
       sourceRef.current?.disconnect()
-      contextRef.current?.close()
+      if (contextRef.current && contextRef.current.state !== 'closed') {
+        contextRef.current.close().catch(() => {})
+      }
       analyserRef.current = null
     }
   }, [mode, stream])

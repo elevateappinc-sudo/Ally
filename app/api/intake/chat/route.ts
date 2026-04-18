@@ -68,8 +68,14 @@ export async function POST(request: Request) {
 
   const anthropic = getAnthropicClient()
 
+  // Anthropic requires messages to start with 'user' — strip any leading assistant turns
+  const filtered = conversationHistory.filter(
+    (turn: { role: string; content: string }, i: number) =>
+      !(i === 0 && turn.role === 'assistant')
+  )
+
   const messages = [
-    ...conversationHistory.map((turn: { role: string; content: string }) => ({
+    ...filtered.map((turn: { role: string; content: string }) => ({
       role: turn.role as 'user' | 'assistant',
       content: turn.content,
     })),
