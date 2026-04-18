@@ -29,11 +29,15 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
   const modeRef = useRef(mode)
   useEffect(() => { modeRef.current = mode }, [mode])
 
-  // After Sofia speaks a question, resume mic if in voice mode
+  // After Sofia speaks a question, resume mic if already started, else show button
   const resumeAfterSpeak = useCallback(() => {
     if (modeRef.current === 'voice' && voiceRef.current) {
-      voiceRef.current.resume()
-      setOrbState('listening')
+      if (voiceRef.current.hasPermission) {
+        voiceRef.current.resume()
+        setOrbState('listening')
+      } else {
+        setOrbState('idle') // shows "Activar micrófono" button
+      }
     } else {
       setOrbState('idle')
     }
@@ -53,10 +57,20 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
     }
   }, [step, totalSteps, answer, finish])
 
+  const [debugLog, setDebugLog] = useState<string[]>([])
+  const addLog = useCallback((msg: string) => {
+    setDebugLog(prev => [...prev.slice(-6), `${new Date().toLocaleTimeString()}: ${msg}`])
+  }, [])
+
   const voiceRecognition = useVoiceRecognition({
-    onTranscript: (text) => { setTranscript(text); setOrbState('listening') },
+    onTranscript: (text) => {
+      setTranscript(text)
+      setOrbState('listening')
+      addLog(`🎤 transcript: "${text}"`)
+    },
     onSilence: async (text) => {
       if (modeRef.current !== 'voice') return
+      addLog(`✅ silence → answer: "${text}" (step ${step})`)
       await handleAnswer(text)
     },
   })
@@ -196,6 +210,20 @@ export function OnboardingClient({ orgId, needsSetup = false }: { orgId: string;
       )}
 
       {saving && <p style={{ color: 'var(--text-dim)', fontSize: 14 }}>Guardando...</p>}
+
+      {/* Debug panel — remove before launch */}
+      <div style={{
+        position: 'fixed', bottom: 16, left: 16, right: 16, maxWidth: 500, margin: '0 auto',
+        background: 'rgba(0,0,0,0.85)', border: '1px solid rgba(255,255,255,0.15)',
+        borderRadius: 10, padding: 12, fontSize: 12, fontFamily: 'monospace',
+        color: '#aaffaa', zIndex: 999,
+      }}>
+        <div style={{ color: '#ffff88', marginBottom: 6 }}>
+          🐛 DEBUG — mic: {voiceRecognition.hasPermission ? '✅' : '❌'} | orb: {orbState} | step: {step}/{totalSteps} | mode: {mode}
+        </div>
+        {debugLog.map((l, i) => <div key={i}>{l}</div>)}
+        {debugLog.length === 0 && <div style={{ color: '#666' }}>esperando eventos...</div>}
+      </div>
     </div>
   )
 }
