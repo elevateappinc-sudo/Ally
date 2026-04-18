@@ -179,26 +179,23 @@ export function IntakeClient({ orgId }: Props) {
   // Start voice mode
   const startVoice = useCallback(async () => {
     setInputMode('voice')
-    console.log('[startVoice] step 1: initSession')
-    const data = await initSession()
-    if (!data) { console.log('[startVoice] initSession returned null'); return }
 
-    console.log('[startVoice] step 2: getUserMedia')
+    // Request mic FIRST — must happen immediately on click before any awaits
+    // so the browser recognizes the user gesture and shows the permission dialog
     let micStream: MediaStream
     try {
       micStream = await navigator.mediaDevices.getUserMedia({ audio: true })
       setStream(micStream)
       setMicError(null)
-      console.log('[startVoice] step 2: mic ok')
     } catch (err: any) {
       console.error('[startVoice] mic error:', err)
-      const isPermission = err?.name === 'NotAllowedError' || err?.name === 'NotFoundError' || err?.name === 'SecurityError'
-      setMicError(isPermission
-        ? 'No pudimos acceder al micrófono. Verificá que el browser tenga permiso en Configuración del sistema → Privacidad → Micrófono.'
-        : 'No encontramos un micrófono. Verificá que esté conectado e intentá de nuevo.'
-      )
+      setMicError('Necesitamos acceso al micrófono para continuar. Hacé click en "Permitir" cuando el navegador lo solicite.')
       return
     }
+
+    console.log('[startVoice] mic ok, init session')
+    const data = await initSession()
+    if (!data) { console.log('[startVoice] initSession returned null'); return }
 
     console.log('[startVoice] step 3: speak opening')
     setStatus('speaking')
