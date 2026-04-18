@@ -32,6 +32,8 @@ export function IntakeClient({ orgId }: Props) {
   const recognitionRef = useRef<any>(null)
   const isPausedRef = useRef(false)
   const isListeningRef = useRef(false)
+  const inputModeRef = useRef<InputMode>('voice')
+  useEffect(() => { inputModeRef.current = inputMode }, [inputMode])
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const currentTextRef = useRef('')
   const statusRef = useRef(status)
@@ -108,9 +110,11 @@ export function IntakeClient({ orgId }: Props) {
     const turns = newHistory.filter(t => t.role === 'user').length
     setBlockIndex(Math.min(BLOCKS.length, Math.floor(turns / 3)))
 
-    // Speak Sofia's response
-    setStatus('speaking')
-    await speak(response)
+    // Speak Sofia's response (voice mode only — text mode skips TTS to avoid hanging)
+    if (inputModeRef.current === 'voice') {
+      setStatus('speaking')
+      await speak(response)
+    }
 
     if (isComplete) {
       setStatus('complete')
