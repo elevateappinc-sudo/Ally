@@ -51,6 +51,11 @@ export default async function CalendarPage() {
     .eq('org_id', orgId!)
     .single()
 
+  const { data: briefingsData } = await supabase
+    .from('post_briefings')
+    .select('post_id, briefing_data, status')
+    .eq('org_id', orgId!)
+
   return (
     <CalendarClient
       orgId={orgId!}
@@ -59,6 +64,7 @@ export default async function CalendarPage() {
       brandStrategy={strategyRow.strategy_data}
       platforms={platforms}
       initialCalendar={existing?.calendar_data ?? null}
+      initialBriefings={briefingsData ?? []}
     />
   )
 }
