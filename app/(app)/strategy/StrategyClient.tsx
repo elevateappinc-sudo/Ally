@@ -144,9 +144,12 @@ export function StrategyClient({ orgId, sessionId, businessBrief, initialStrateg
       {activeTab === 'pilares' && <PilaresTab strategy={strategy} />}
       {activeTab === 'keywords' && <KeywordsTab strategy={strategy} />}
 
-      <div style={{ marginTop: 40, display: 'flex', gap: 12 }}>
-        <button onClick={() => router.push('/dashboard')} className="btn btn-primary">
-          Ir al dashboard →
+      <div style={{ marginTop: 40, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <button onClick={() => router.push('/calendar')} className="btn btn-primary">
+          Crear calendario →
+        </button>
+        <button onClick={() => router.push('/dashboard')} className="btn btn-glass" style={{ fontSize: 13 }}>
+          Ir al dashboard
         </button>
         <button onClick={generateStrategy} className="btn btn-glass" style={{ fontSize: 13 }}>
           Regenerar estrategia
