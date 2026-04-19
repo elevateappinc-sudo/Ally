@@ -145,7 +145,7 @@ export function SetupClient({ orgId, sessionId, businessBrief }: Props) {
         }),
       })
     } catch {}
-    router.push('/dashboard')
+    router.push('/strategy')
   }
 
   if (loading) {
