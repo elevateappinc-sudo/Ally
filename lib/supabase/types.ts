@@ -31,3 +31,23 @@ export interface ContentPost {
   approved_by: string | null; created_at: string
 }
 export interface AdminUser { user_id: string; created_at: string }
+
+export interface ProductsServicesBasic {
+  input_method: 'document' | 'website' | 'voice_description' | 'skipped'
+  source?: {
+    type: 'pdf' | 'image' | 'website'
+    url?: string
+  }
+  categories: string[]
+  signature_items: string[]
+  special_attributes: string[]
+  observations: string
+  detailed_catalog_completed: boolean
+}
+
+export interface InventoryExtraction {
+  categories: string[]
+  signature_items: string[]
+  special_attributes: string[]
+  observations: string
+}
