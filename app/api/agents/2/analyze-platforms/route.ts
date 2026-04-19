@@ -48,6 +48,9 @@ export async function POST(request: Request) {
   const { business_brief } = await request.json()
   if (!business_brief) return NextResponse.json({ error: 'Missing business_brief' }, { status: 400 })
 
+  const hasContent = business_brief?.business_info?.name || business_brief?.business_info?.industry
+  if (!hasContent) return NextResponse.json({ error: 'Missing business_brief' }, { status: 400 })
+
   const anthropic = getAnthropicClient()
 
   let responseText = ''
@@ -67,16 +70,14 @@ export async function POST(request: Request) {
     const result = JSON.parse(cleaned)
     return NextResponse.json(result)
   } catch {
-    // Fallback: recommend all platforms if parse fails
+    // Fallback: recommend only universally safe platforms if parse fails
     return NextResponse.json({
-      recommended_platforms: ['instagram', 'facebook', 'google_business', 'tiktok'],
+      recommended_platforms: ['instagram', 'google_business'],
       reasoning: {
-        instagram: 'Ideal para mostrar tu negocio visualmente.',
-        facebook: 'Amplio alcance para tu audiencia.',
+        instagram: 'Ideal para mostrar tu negocio y conectar con clientes.',
         google_business: 'Esencial para aparecer en búsquedas locales.',
-        tiktok: 'Crecimiento orgánico para audiencia joven.',
       },
-      sofia_message: 'Mirá, analizando tu negocio, te recomiendo estar en Instagram, Facebook, Google Business y TikTok. Cada una te ayuda a llegar a más clientes. ¡Empecemos!',
+      sofia_message: 'Mirá, para empezar te recomiendo Instagram y Google Business — son las dos plataformas más efectivas para casi cualquier negocio. ¡Empecemos a optimizar tus perfiles!',
     })
   }
 }
