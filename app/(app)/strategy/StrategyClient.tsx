@@ -99,7 +99,7 @@ export function StrategyClient({ orgId, sessionId, businessBrief, initialStrateg
       <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
         <p style={{ color: 'var(--siri-pink)', fontSize: 16 }}>⚠️ {error}</p>
         <button onClick={generateStrategy} className="btn btn-primary">Intentar de nuevo</button>
-        <button onClick={() => router.push('/dashboard')} className="btn btn-glass">Ir al dashboard</button>
+        <button onClick={() => router.push('/home')} className="btn btn-glass">Ir al inicio</button>
       </div>
     )
   }
@@ -148,7 +148,7 @@ export function StrategyClient({ orgId, sessionId, businessBrief, initialStrateg
         <button onClick={() => router.push('/calendar')} className="btn btn-primary">
           Crear calendario →
         </button>
-        <button onClick={() => router.push('/dashboard')} className="btn btn-glass" style={{ fontSize: 13 }}>
+        <button onClick={() => router.push('/home')} className="btn btn-glass" style={{ fontSize: 13 }}>
           Ir al dashboard
         </button>
         <button onClick={generateStrategy} className="btn btn-glass" style={{ fontSize: 13 }}>

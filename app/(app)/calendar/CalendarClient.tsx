@@ -721,7 +721,7 @@ export function CalendarClient({
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button onClick={handleExportCSV} className="btn btn-primary">Exportar CSV ↓</button>
           <button onClick={generateCalendar} className="btn btn-glass" style={{ fontSize: 13 }}>Regenerar calendario</button>
-          <button onClick={() => router.push('/dashboard')} className="btn btn-glass" style={{ fontSize: 13 }}>Ir al dashboard</button>
+          <button onClick={() => router.push('/home')} className="btn btn-glass" style={{ fontSize: 13 }}>Ir al inicio</button>
         </div>
       </div>
     </>
