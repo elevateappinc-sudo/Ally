@@ -32,6 +32,16 @@ export interface ContentPost {
 }
 export interface AdminUser { user_id: string; created_at: string }
 
+export interface SetupStatus {
+  id: string
+  org_id: string
+  session_id: string
+  completed_platforms: string[]
+  optimized_content: Record<string, Record<string, string>>
+  created_at: string
+  updated_at: string
+}
+
 export interface ProductsServicesBasic {
   input_method: 'document' | 'website' | 'voice_description' | 'skipped'
   source?: {

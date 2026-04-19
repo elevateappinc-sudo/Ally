@@ -302,23 +302,14 @@ export function IntakeClient({ orgId }: Props) {
     router.push('/dashboard')
   }, [stream, router])
 
-  // Complete → generate strategy
+  // Complete → go to Agent 2 setup
   useEffect(() => {
     if (status !== 'complete') return
     isListeningRef.current = false
     recognitionRef.current?.stop()
     stream?.getTracks().forEach(t => t.stop())
-
-    const generate = async () => {
-      await fetch('/api/generate-strategy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orgId }),
-      })
-      router.push('/dashboard')
-    }
-    generate()
-  }, [status, orgId, stream, router])
+    router.push('/setup')
+  }, [status, stream, router])
 
   // Mode select screen
   if (status === 'mode-select') {
