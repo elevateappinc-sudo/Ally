@@ -153,7 +153,7 @@ export function FacebookMockup({ content }: { content: FacebookContent }) {
       <div style={{ height: 140, background: 'linear-gradient(135deg, #1877f2 0%, #0a4fd4 100%)', position: 'relative' }}>
         <div style={{ position: 'absolute', bottom: -28, left: 16 }}>
           <div style={{ width: 80, height: 80, borderRadius: 8, border: '3px solid #18191a', background: '#2d2e2f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="rgba(255,255,255,0.3)"><path d="M4 6h16M4 10h16M4 14h8"/></svg>
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2"><path d="M4 6h16M4 10h16M4 14h8"/></svg>
           </div>
         </div>
       </div>
@@ -209,6 +209,7 @@ export function FacebookMockup({ content }: { content: FacebookContent }) {
 interface GoogleBusinessContent {
   description: string
   primary_category: string
+  name?: string
   secondary_categories?: string[]
   attributes?: string[]
 }
@@ -223,10 +224,10 @@ export function GoogleBusinessMockup({ content }: { content: GoogleBusinessConte
       {/* Map placeholder */}
       <div style={{ height: 110, background: 'linear-gradient(160deg, #1e3a2f 0%, #2d4a3e 50%, #1a3028 100%)', position: 'relative', overflow: 'hidden' }}>
         {[20, 40, 60, 80].map(p => (
-          <div key={p} style={{ position: 'absolute', left: 0, right: 0, top: `${p}%`, height: 1, background: 'rgba(255,255,255,0.06)' }} />
+          <div key={`h-${p}`} style={{ position: 'absolute', left: 0, right: 0, top: `${p}%`, height: 1, background: 'rgba(255,255,255,0.06)' }} />
         ))}
         {[20, 40, 60, 80].map(p => (
-          <div key={p} style={{ position: 'absolute', top: 0, bottom: 0, left: `${p}%`, width: 1, background: 'rgba(255,255,255,0.06)' }} />
+          <div key={`v-${p}`} style={{ position: 'absolute', top: 0, bottom: 0, left: `${p}%`, width: 1, background: 'rgba(255,255,255,0.06)' }} />
         ))}
         {/* Pin */}
         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -60%)' }}>
@@ -239,7 +240,7 @@ export function GoogleBusinessMockup({ content }: { content: GoogleBusinessConte
       {/* Business card */}
       <div style={{ padding: '16px 16px 8px' }}>
         <h2 style={{ color: 'white', fontSize: 20, fontWeight: 700, margin: '0 0 4px 0' }}>
-          Tu negocio
+          {content.name || 'Tu negocio'}
         </h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
           <div style={{ display: 'flex', gap: 1 }}>
