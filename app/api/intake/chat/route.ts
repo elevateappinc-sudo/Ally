@@ -141,7 +141,7 @@ export async function POST(request: Request) {
   try {
     response = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 500,
+      max_tokens: 1000,
       system: SYSTEM_PROMPT,
       messages,
     })
@@ -173,10 +173,10 @@ export async function POST(request: Request) {
       // Keep going even if JSON parse fails
     }
 
-    // Save brief to DB
-    if (sessionId && businessBrief) {
+    // Always mark session complete when marker fires; save brief if parse succeeded
+    if (sessionId) {
       await supabase.from('intake_sessions').update({
-        business_brief: businessBrief,
+        ...(businessBrief ? { business_brief: businessBrief } : {}),
         status: 'complete',
         updated_at: new Date().toISOString(),
       }).eq('id', sessionId)

@@ -18,17 +18,17 @@ export default async function SetupPage() {
     orgId = member.org_id
   }
 
-  // Get latest completed intake session with business brief
+  // Get latest intake session that has a business_brief (complete or any status)
   const { data: session } = await supabase
     .from('intake_sessions')
     .select('id, business_brief')
     .eq('org_id', orgId!)
-    .eq('status', 'complete')
+    .not('business_brief', 'is', null)
     .order('updated_at', { ascending: false })
     .limit(1)
     .single()
 
-  if (!session?.business_brief) redirect('/intake')
+  if (!session?.business_brief) redirect('/dashboard')
 
   return <SetupClient orgId={orgId!} sessionId={session.id} businessBrief={session.business_brief} />
 }
