@@ -38,7 +38,7 @@ const PLATFORM_META: Record<string, {
     logo: (
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
         <defs>
-          <linearGradient id="ig" x1="0%" y1="100%" x2="100%" y2="0%">
+          <linearGradient id="ig-logo" x1="0%" y1="100%" x2="100%" y2="0%">
             <stop offset="0%" stopColor="#f09433"/>
             <stop offset="25%" stopColor="#e6683c"/>
             <stop offset="50%" stopColor="#dc2743"/>
@@ -46,7 +46,7 @@ const PLATFORM_META: Record<string, {
             <stop offset="100%" stopColor="#bc1888"/>
           </linearGradient>
         </defs>
-        <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#ig)"/>
+        <rect x="2" y="2" width="20" height="20" rx="6" fill="url(#ig-logo)"/>
         <circle cx="12" cy="12" r="4.5" stroke="white" strokeWidth="1.8" fill="none"/>
         <circle cx="17.5" cy="6.5" r="1.2" fill="white"/>
       </svg>
@@ -240,9 +240,13 @@ export function SetupClient({ orgId, sessionId, businessBrief }: Props) {
           optimized_content: editedContent,
         }),
       })
-    } catch {}
-    router.push('/strategy')
+  } catch (err) {
+    console.error('[SetupClient] save-setup-status failed:', err)
+  } finally {
+    setSaving(false)
   }
+  router.push('/strategy')
+}
 
   // ── analyzing ───────────────────────────────────────────────────────────────
 
@@ -433,7 +437,7 @@ export function SetupClient({ orgId, sessionId, businessBrief }: Props) {
                     return (
                       <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <label style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          <label htmlFor={`${platformId}-${field.key}`} style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                             {field.label}
                           </label>
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -456,6 +460,7 @@ export function SetupClient({ orgId, sessionId, businessBrief }: Props) {
 
                         {field.multiline ? (
                           <textarea
+                            id={`${platformId}-${field.key}`}
                             value={value}
                             onChange={e => setEditedContent(prev => ({
                               ...prev,
@@ -472,6 +477,7 @@ export function SetupClient({ orgId, sessionId, businessBrief }: Props) {
                           />
                         ) : (
                           <input
+                            id={`${platformId}-${field.key}`}
                             type="text"
                             value={value}
                             onChange={e => setEditedContent(prev => ({
