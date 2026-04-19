@@ -4,7 +4,38 @@ import { NextResponse } from 'next/server'
 
 export const maxDuration = 60
 
-const GENERATION_PROMPT = (brief: any) => `
+const ALL_PLATFORMS = ['instagram', 'facebook', 'google_business', 'tiktok']
+
+const PLATFORM_SPECS: Record<string, string> = {
+  instagram: `
+  "instagram": {
+    "display_name": "nombre del negocio + keyword de ubicación, máx 30 caracteres",
+    "bio": "4 líneas: qué hacés | diferenciador o producto estrella | opciones especiales | ubicación + horario abreviado + CTA. Máx 150 caracteres total. 1-2 emojis relevantes.",
+    "category": "categoría de negocio más apropiada en Instagram"
+  }`,
+  facebook: `
+  "facebook": {
+    "page_name": "nombre del negocio, máx 75 caracteres",
+    "short_description": "máx 255 caracteres, incluir keywords locales para SEO",
+    "long_description": "máx 500 caracteres, historia del negocio + valores + diferenciadores",
+    "cta_button": "uno exacto de: CONTACT_US | CALL_NOW | BOOK_NOW | SHOP_NOW | LEARN_MORE"
+  }`,
+  google_business: `
+  "google_business": {
+    "description": "máx 750 caracteres, incluir: qué hacés, productos top, diferenciadores, keywords locales con barrio y ciudad",
+    "primary_category": "categoría principal de Google Business más específica",
+    "secondary_categories": ["hasta 5 categorías adicionales relevantes"],
+    "attributes": ["atributos relevantes: WiFi disponible, Acepta tarjetas de crédito, Opciones veganas, etc"]
+  }`,
+  tiktok: `
+  "tiktok": {
+    "display_name": "nombre corto y memorable, máx 30 caracteres",
+    "bio": "máx 80 caracteres, directo y con personalidad para audiencia joven",
+    "category": "categoría más apropiada en TikTok"
+  }`,
+}
+
+const GENERATION_PROMPT = (brief: any, platforms: string[]) => `
 Generá contenido optimizado para perfiles de redes sociales para este negocio.
 
 BRIEF DEL NEGOCIO:
@@ -16,30 +47,11 @@ Producto estrella: ${(brief.products_services_basic?.signature_items ?? []).join
 Atributos especiales: ${(brief.products_services_basic?.special_attributes ?? []).join(', ')}
 Objetivo principal: ${brief.objectives?.primary_goal ?? ''}
 
-Generá contenido para LAS 4 plataformas. Respondé ÚNICAMENTE con este JSON exacto (sin markdown):
+Generá contenido ÚNICAMENTE para estas plataformas: ${platforms.join(', ')}
+
+Respondé ÚNICAMENTE con este JSON exacto (sin markdown), incluyendo solo las plataformas indicadas:
 {
-  "instagram": {
-    "display_name": "nombre del negocio + keyword de ubicación, máx 30 caracteres",
-    "bio": "4 líneas: qué hacés | diferenciador o producto estrella | opciones especiales | ubicación + horario abreviado + CTA. Máx 150 caracteres total. 1-2 emojis relevantes.",
-    "category": "categoría de negocio más apropiada en Instagram"
-  },
-  "facebook": {
-    "page_name": "nombre del negocio, máx 75 caracteres",
-    "short_description": "máx 255 caracteres, incluir keywords locales para SEO",
-    "long_description": "máx 500 caracteres, historia del negocio + valores + diferenciadores",
-    "cta_button": "uno exacto de: CONTACT_US | CALL_NOW | BOOK_NOW | SHOP_NOW | LEARN_MORE"
-  },
-  "google_business": {
-    "description": "máx 750 caracteres, incluir: qué hacés, productos top, diferenciadores, keywords locales con barrio y ciudad",
-    "primary_category": "categoría principal de Google Business más específica",
-    "secondary_categories": ["hasta 5 categorías adicionales relevantes"],
-    "attributes": ["atributos relevantes: WiFi disponible, Acepta tarjetas de crédito, Opciones veganas, etc"]
-  },
-  "tiktok": {
-    "display_name": "nombre corto y memorable, máx 30 caracteres",
-    "bio": "máx 80 caracteres, directo y con personalidad para audiencia joven",
-    "category": "categoría más apropiada en TikTok"
-  }
+${platforms.map(p => PLATFORM_SPECS[p]).join(',\n')}
 }
 
 REGLAS:
@@ -54,8 +66,13 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { business_brief } = await request.json()
+  const { business_brief, platforms } = await request.json()
   if (!business_brief) return NextResponse.json({ error: 'Missing business_brief' }, { status: 400 })
+
+  // Default to all platforms if not specified
+  const activePlatforms: string[] = Array.isArray(platforms) && platforms.length > 0
+    ? platforms.filter(p => ALL_PLATFORMS.includes(p))
+    : ALL_PLATFORMS
 
   const anthropic = getAnthropicClient()
 
@@ -64,7 +81,7 @@ export async function POST(request: Request) {
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 1500,
-      messages: [{ role: 'user', content: GENERATION_PROMPT(business_brief) }],
+      messages: [{ role: 'user', content: GENERATION_PROMPT(business_brief, activePlatforms) }],
     })
     responseText = message.content[0].type === 'text' ? message.content[0].text : ''
   } catch (err: any) {
